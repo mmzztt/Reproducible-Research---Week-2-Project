@@ -1,0 +1,108 @@
+
+# Reproducible Research - Week 2 Project
+
+============================================================================================
+
+## 1) Code for reading in the data set
+```{r}
+setwd("C:/Users/Marcel/Documents/DataScience/Course5")
+if(!file.exists("Project1")) {
+  
+   dir.create("Project1")}
+
+setwd("Project1")
+unzip("repdata_data_activity.zip")
+
+library(readr)
+
+repdata <- read_csv("activity.csv")
+```
+
+
+## 2) Histogram of the total number of steps taken each day.
+```{r}
+total_steps <- aggregate(repdata$steps, by= list(repdata$date), FUN=sum, na.rm= TRUE)
+colnames(total_steps) <- c("Date", "Steps")
+
+library(ggplot2)
+
+
+ggplot(total_steps, aes(Steps)) + geom_histogram(color="orange", fill="yellow", binwidth = 2000) + labs(x="Total Steps", y="Frequency") + ggtitle("Total Steps Taken Each Day")
+```
+
+
+## 3) Mean and median number of steps taken each day.
+```{r}
+meanSteps <- mean(total_steps$Steps, na.rm = TRUE)
+print(meanSteps)
+
+medianSteps <- median(total_steps$Steps, na.rm = TRUE)
+print(medianSteps)
+```
+
+
+## 4) Time series plot of the average number of steps taken.
+```{r}
+library(dplyr)
+
+timeSeries <- repdata %>% group_by(date) %>% summarize(Average.Steps = mean(steps, na.rm = TRUE))
+
+
+ggplot(timeSeries, aes(x= date, y= Average.Steps)) + 
+      geom_line(size=1, color="darkblue") +
+      labs(x = "Date", y ="Average Steps") +
+      ggtitle("Average Steps per Day")
+```
+
+
+## 5) The 5-minute interval that, on average, contains the maximum number of steps.
+```{r}
+repdata %>% group_by(interval) %>% summarize(Average.Steps = mean(steps, na.rm = TRUE)) %>% filter(Average.Steps == max(Average.Steps))
+```
+
+
+## 6) Code to describe and show a strategy for imputing missing data.
+```{r}
+totalNA <- sum(is.na(repdata))
+totalNA
+
+intervalMean <- repdata %>% group_by(interval) %>% summarize(Mean.Interval = mean(steps,  na.rm = TRUE))
+
+repdata$complete.steps <- ifelse(is.na(repdata$steps),              round(intervalMean$Mean.Interval[match(repdata$interval,   intervalMean$interval)],0),repdata$steps)
+
+repdataComplete <- data.frame(repdata$complete.steps, repdata$date, repdata$interval)
+colnames(repdataComplete) <- c("Steps", "Date", "Interval")
+head(repdataComplete)
+```
+
+
+## 7) Histogram of the total number of steps taken each day after missing values are imputed.
+```{r}
+stepsDay <- repdataComplete %>% group_by(Date) %>% summarize(Total.Steps = sum(Steps))
+
+
+ggplot(stepsDay, aes(Total.Steps)) + geom_histogram(color="red", fill="magenta", binwidth = 2000) + labs(x= "Total Steps", y="Frequency") + ggtitle("Total Steps Taken Each Day")
+
+
+meanStepsComplete <- mean(stepsDay$Total.Steps)
+print(meanStepsComplete)
+
+medianStepsComplete <- median(stepsDay$Total.Steps)
+print(medianStepsComplete)
+```
+
+
+## 8) Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends.
+```{r}
+repdataComplete$Day.Name <- weekdays(repdataComplete$Date)
+
+repdataComplete$Classification <- ifelse(repdataComplete$Day.Name == "Saturday" | repdataComplete$Day.Name == "Sunday", "Weekend", "Weekday")
+head(repdataComplete)
+
+timeSeriesClassification <- repdataComplete %>% group_by(Interval, Classification) %>% summarize(Interval.Steps.Mean = mean(Steps))
+head(timeSeriesClassification)
+
+
+ggplot(timeSeriesClassification, aes(Interval, Interval.Steps.Mean)) + geom_line(size=1.5, color= "darkblue") + facet_grid(Classification~.) + labs(x="Interval", y="Average Steps") + ggtitle("Average Steps Taken Across Weekdays and Weekends")
+```
+
